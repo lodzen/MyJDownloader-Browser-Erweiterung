@@ -18,8 +18,6 @@ angular.module('myjdWebextensionApp')
             this.SETTINGS_DEFAULT_DEEPDECRYPT = "DEFAULT_DEEPDECRYPT";
             this.SETTINGS_DEFAULT_AUTOSTART = "DEFAULT_AUTOSTART";
             this.SETTINGS_DEFAULT_AUTOEXTRACT = "DEFAULT_AUTOEXTRACT";
-            this.SETTINGS_ENHANCE_CAPTCHA_DIALOG = "ENHANCE_CAPTCHA_DIALOG";
-            this.SETTINGS_CAPTCHA_PRIVACY_MODE = "CAPTCHA_PRIVACY_MODE";
             this.SETTINGS_DEFAULT_OVERWRITE_PACKAGIZER = "DEFAULT_OVERWRITE_PACKAGIZER";
             this.SETTINGS_CLICKNLOAD_ACTIVE = "CLICKNLOAD_ACTIVE";
             this.SaveForLaterDevice = {id: "SaveForLaterDevice", name: "Save for later"};
@@ -50,12 +48,10 @@ angular.module('myjdWebextensionApp')
             let StorageService = this;
 
             this.settingsKeys = {
-                ENHANCE_CAPTCHA_DIALOG: {key: StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG, defaultValue: true},
                 ADD_LINKS_DIALOG_ACTIVE: {key: StorageService.SETTINGS_ADD_LINKS_DIALOG_ACTIVE, defaultValue: true},
                 COUNTDOWN_ACTIVE: {key: StorageService.SETTINGS_COUNTDOWN_ACTIVE, defaultValue: true},
                 COUNTDOWN_VALUE: {key: StorageService.SETTINGS_COUNTDOWN_VALUE, defaultValue: 3},
                 CLIPBOARD_OBSERVER: {key: StorageService.SETTINGS_CLIPBOARD_OBSERVER, defaultValue: false},
-                CAPTCHA_PRIVACY_MODE: {key: StorageService.SETTINGS_CAPTCHA_PRIVACY_MODE, defaultValue: true},
                 CONTEXT_MENU_SIMPLE: {key: StorageService.SETTINGS_CONTEXT_MENU_SIMPLE, defaultValue: true},
                 DEFAULT_PREFERRED_JD: {
                     key: StorageService.SETTINGS_DEFAULT_PREFERRED_JD,

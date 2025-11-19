@@ -9,8 +9,13 @@
  */
 
 angular.module('myjdWebextensionApp')
-  .controller('BackgroundCtrl', ['$scope', '$timeout', '$q', 'Rc2Service', 'BrowserService', 'PopupIconService', 'CnlService', 'StorageService', 'ClipboardHistoryService', 'StringUtilsService', 'myjdClientFactory', 'myjdDeviceClientFactory', 'ExtensionMessagingService', 'PopupCandidatesService', 'ExtensionI18nService',
-    function ($scope, $timeout, $q, Rc2Service, BrowserService, PopupIconService, cnlService, StorageService, ClipboardHistoryService, StringUtilsService, myjdClientFactory, myjdDeviceClientFactory, ExtensionMessagingService, PopupCandidatesService, ExtensionI18nService) {
+  .controller('BackgroundCtrl', ['$scope', '$timeout', '$q', 'BrowserService', 'PopupIconService', 'CnlService', 'StorageService', 'ClipboardHistoryService', 'StringUtilsService', 'myjdClientFactory', 'myjdDeviceClientFactory', 'ExtensionMessagingService', 'PopupCandidatesService', 'ExtensionI18nService',
+    function ($scope, $timeout, $q, BrowserService, PopupIconService, cnlService, StorageService, ClipboardHistoryService, StringUtilsService, myjdClientFactory, myjdDeviceClientFactory, ExtensionMessagingService, PopupCandidatesService, ExtensionI18nService) {
+      const manifestVersion = chrome.runtime && chrome.runtime.getManifest ? chrome.runtime.getManifest().manifest_version : 2;
+      if (manifestVersion >= 3) {
+        console.warn('BackgroundCtrl is disabled for Manifest V3 runtime.');
+        return;
+      }
       let urlRegexp = new RegExp("([a-zA-Z0-9]+://)?([a-zA-Z0-9_]+:[a-zA-Z0-9_]+@)?([a-zA-Z0-9.-]+\\.[A-Za-z]{2,4})(:[0-9]+)?(/.*)?");
       let requestIDCounter = 0;
       let requestQueue = {
@@ -74,7 +79,7 @@ angular.module('myjdWebextensionApp')
       function initSettings() {
         return $q(function (resolve, reject) {
           try {
-            StorageService.getCollection([StorageService.SETTINGS_CLIPBOARD_OBSERVER, StorageService.SETTINGS_CONTEXT_MENU_SIMPLE, StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG], function (result) {
+            StorageService.getCollection([StorageService.SETTINGS_CLIPBOARD_OBSERVER, StorageService.SETTINGS_CONTEXT_MENU_SIMPLE], function (result) {
               if (result[StorageService.SETTINGS_CLIPBOARD_OBSERVER] !== undefined) {
                 settings[StorageService.SETTINGS_CLIPBOARD_OBSERVER] = result[StorageService.SETTINGS_CLIPBOARD_OBSERVER];
               } else {
@@ -85,11 +90,6 @@ angular.module('myjdWebextensionApp')
                 settings[StorageService.SETTINGS_CONTEXT_MENU_SIMPLE] = result[StorageService.SETTINGS_CONTEXT_MENU_SIMPLE];
               } else {
                 settings[StorageService.SETTINGS_CONTEXT_MENU_SIMPLE] = true;
-              }
-              if (result[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG] !== undefined) {
-                settings[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG] = result[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG];
-              } else {
-                settings[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG] = true;
               }
               resolve();
             });
@@ -488,11 +488,6 @@ angular.module('myjdWebextensionApp')
         }
       });
 
-      ExtensionMessagingService.addListener("webinterface-enhancer", "settings", function (request, sender, sendResponse) {
-        if (sender.tab) {
-          sendResponse({ active: settings[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG] });
-        }
-      });
 
       ExtensionMessagingService.addListener("myjd-selection", "new-selection", function (request, sender, sendResponse) {
         if (sender.tab) {
@@ -866,9 +861,6 @@ angular.module('myjdWebextensionApp')
           settings[StorageService.SETTINGS_CONTEXT_MENU_SIMPLE] = changes[StorageService.SETTINGS_CONTEXT_MENU_SIMPLE].newValue;
           initMenuItems();
         }
-        if (changes && changes[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG]) {
-          settings[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG] = changes[StorageService.SETTINGS_ENHANCE_CAPTCHA_DIALOG].newValue;
-        }
         if (changes && changes[StorageService.SETTINGS_CLIPBOARD_OBSERVER]) {
           settings[StorageService.SETTINGS_CLIPBOARD_OBSERVER] = changes[StorageService.SETTINGS_CLIPBOARD_OBSERVER].newValue;
           $scope.state.clipboardObserver = changes[StorageService.SETTINGS_CLIPBOARD_OBSERVER].newValue;
@@ -911,7 +903,6 @@ angular.module('myjdWebextensionApp')
         chrome.contextMenus.removeAll();
         removeCnlInterceptor();
         removeDialogFromAllTabs();
-        addRc2Interceptor();
       }
 
       let addRequestHeaderInterceptor = function () {
@@ -934,22 +925,11 @@ angular.module('myjdWebextensionApp')
         }
       };
 
-      let addRc2Interceptor = function () {
-        if (!chrome.webRequest.onBeforeRequest.hasListener(Rc2Service.handleRequest)) {
-          chrome.webRequest.onBeforeRequest.removeListener(Rc2Service.handleRequest);
-          chrome.webRequest.onBeforeRequest.addListener(
-            Rc2Service.handleRequest, {
-            urls: ["<all_urls>"]
-          }, ["requestBody", "blocking"]);
-        }
-      };
-
       function initConnected() {
         addCnlInterceptor();
         initMenuItems();
         $scope.state.isConnected = true;
         updateBadge($scope.state);
-        addRc2Interceptor();
       }
 
       function injectContentScripts() {
@@ -968,16 +948,9 @@ angular.module('myjdWebextensionApp')
                       tab.url.startsWith("https://chrome.google.com/webstore/"); // injecting scripts to https://chrome.google.com/webstore/* is blocked by chrome
                     if (!isBlockedUrl) {
                       $.each(scripts, function (index, script) {
-                        if (script === "contentscripts/webinterfaceEnhancer.js" && !tab.url.startsWith("https://my.jdownloader.org")) {
-                          return;
-                        }
-                        if (script === "contentscripts/browserSolverEnhancer.js" && !tab.url.match(/http:\/\/127.0.0.1:\d*\/.*\/.?id=\d+/gi)) {
-                          return;
-                        } else {
-                          chrome.tabs.executeScript(tab.id, {
-                            file: script
-                          });
-                        }
+                        chrome.tabs.executeScript(tab.id, {
+                          file: script
+                        });
                       });
                     }
                   });
@@ -987,17 +960,6 @@ angular.module('myjdWebextensionApp')
           }
         });
       }
-
-      chrome.tabs.query({ url: "http://127.0.0.1/*" }, (tabs) => {
-        // execute scripts in tabs that were opened before the extension was available
-        $.each(tabs, (index, tab) => {
-          if (tab.url.match(/http:\/\/127.0.0.1:\d*\/.*\/.?id=\d+/gi)) {
-            chrome.tabs.executeScript(tab.id, {
-              file: "contentscripts/browserSolverEnhancer.js"
-            });
-          }
-        });
-      });
 
       chrome.runtime.onInstalled.addListener(function (details) {
         if (chrome.runtime.lastError != null) {

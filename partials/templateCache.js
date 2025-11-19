@@ -258,25 +258,6 @@ angular.module('myjdWebextensionApp').run(['$templateCache', function($templateC
     "            </div>\n" +
     "        </form>\n" +
     "    </div>\n" +
-    "    <div class=\"settingsContainer\" id=\"webinterfaceEnhancerContainer\">\n" +
-    "        <h4>{{'ui_settings_webinterface_enhancer_header'\n" +
-    "            | translate}}</h4>\n" +
-    "        <p>{{'ui_settings_webinterface_enhancer_description'\n" +
-    "            | translate}}\n" +
-    "        </p>\n" +
-    "        <div class=\"inlineSettingsContainer\" id=\"enhanceCaptchaDialogContainer\">\n" +
-    "            <label for=\"enhanceCaptchaDialog\"><input type=\"checkbox\" id=\"enhanceCaptchaDialog\"\n" +
-    "                    ng-model=\"settings[settingsKeys.ENHANCE_CAPTCHA_DIALOG.key]\" />\n" +
-    "                {{'ui_settings_enhance_captcha_dialog_title'\n" +
-    "                | translate}}</label>\n" +
-    "            <div style=\"clear:both;\"></div>\n" +
-    "            <p class=\"description\">\n" +
-    "                <small>{{'ui_settings_enhance_captcha_dialog_description'\n" +
-    "                    | translate}}\n" +
-    "                </small>\n" +
-    "            </p>\n" +
-    "        </div>\n" +
-    "    </div>\n" +
     "    <h4>About</h4>\n" +
     "    <div id=\"aboutContainer\">\n" +
     "        <div ng-if=\"buildMeta\">\n" +

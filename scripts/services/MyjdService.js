@@ -3,6 +3,7 @@
 angular.module('myjdWebextensionApp')
     .service('MyjdService', ['$q', '$http', 'ApiErrorService', 'StorageService', 'ExtensionMessagingService',
         function ($q, $http, ApiErrorService, StorageService, ExtensionMessagingService) {
+            const CONNECTION_STATE_KEY = "MYJD_CONNECTION_ACTIVE";
 
             this.CONNECTION_STATES = {
                 CONNECTING: "CONNECTING",
@@ -31,6 +32,7 @@ angular.module('myjdWebextensionApp')
                 var DISCONNECTED_STATE = 3;
 
                 if (state === CONNECTED_STATE) {
+                    chrome.storage.local.set({ [CONNECTION_STATE_KEY]: true });
                     myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.CONNECTED));
                     chrome.runtime.sendMessage({
                         name: "myjd-toolbar",
@@ -41,6 +43,7 @@ angular.module('myjdWebextensionApp')
                     });
                     console.log("MyjdService: connection state change, new state: CONNECTED_STATE");
                 } else if (state === RECONNECT_STATE) {
+                    chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
                     myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.RECONNECTING));
                     chrome.runtime.sendMessage({
                         name: "myjd-toolbar",
@@ -51,11 +54,13 @@ angular.module('myjdWebextensionApp')
                     });
                     console.log("MyjdService: connection state change, new state: RECONNECT_STATE");
                 } else if (state === DISCONNECTED_STATE) {
+                    chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
                     myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.DISCONNECTED));
                     ExtensionMessagingService.sendMessage("myjd-toolbar", "CONNECTION_STATE_CHANGE", myjdService.CONNECTION_STATES.DISCONNECTED);
                     ExtensionMessagingService.sendMessage("myjd-toolbar", "session-change", { isLoggedIn: false });
                     console.log("MyjdService: connection state change, new state: DISCONNECTED_STATE");
                 } else if (state === PENDING_STATE) {
+                    chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
                     myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.CONNECTING));
                     ExtensionMessagingService.sendMessage("myjd-toolbar", "CONNECTION_STATE_CHANGE", myjdService.CONNECTION_STATES.CONNECTING);
                     console.log("MyjdService: connection state change, new state: PENDING_STATE");
@@ -88,10 +93,12 @@ angular.module('myjdWebextensionApp')
                     myjdService.api.disconnect().done(function () {
                         StorageService.clear();
                         myjdService.api.jdAPICore.options = {};
+                        chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
                         resolve();
                     }).fail(function (error) {
                         StorageService.clear();
                         myjdService.api.jdAPICore.options = {};
+                        chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
                         myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.DISCONNECTED));
                         reject(error);
                     });

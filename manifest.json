@@ -2,7 +2,7 @@
 "update_url": "https://clients2.google.com/service/update2/crx",
 
   "description": "__MSG_extensionDescription__",
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "__MSG_extensionName__",
   "short_name": "MyJDownloader",
   "version": "3.3.20",
@@ -18,13 +18,19 @@
     "webRequest",
     "webRequestBlocking",
     "contextMenus",
-    "<all_urls>"
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://127.0.0.1:9666/*",
+    "http://localhost:9666/*",
+    "https://my.jdownloader.org/*",
+    "http://my.jdownloader.org/*"
   ],
   "background": {
-    "page": "index.html",
-    "persistent": true
+    "service_worker": "scripts/background_service_worker.js"
   },
-  "browser_action": {
+  "action": {
     "default_icon": "images/icon32.png",
     "default_title": "MyJDownloader",
     "default_popup": "popup.html"
@@ -33,9 +39,15 @@
     "page": "index.html#!/settings"
   },
   "web_accessible_resources": [
-    "toolbar.html",
-    "autograbber-indicator.html",
-    "res/browser_solver_template.html"
+    {
+      "resources": [
+        "toolbar.html",
+        "autograbber-indicator.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
   ],
   "commands": {
     "toggle-clipboard-observer": {
@@ -54,26 +66,6 @@
     }
   },
   "content_scripts": [
-    {
-      "js": [
-        "contentscripts/rc2Contentscript.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": true,
-      "matches": [
-        "<all_urls>"
-      ]
-    },
-    {
-      "js": [
-        "contentscripts/rc2LoadingIndicator.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": true,
-      "matches": [
-        "<all_urls>"
-      ]
-    },
     {
       "js": [
         "contentscripts/onCopyContentscript.js"
@@ -102,18 +94,6 @@
       "all_frames": true,
       "matches": [
         "<all_urls>"
-      ]
-    },
-    {
-      "js": [
-        "contentscripts/webinterfaceEnhancer.js"
-      ],
-      "run_at": "document_end",
-      "all_frames": true,
-      "matches": [
-        "http://my.jdownloader.org/*",
-        "https://my.jdownloader.org/*",
-        "http://my.jdownloader.org/*"
       ]
     }
   ],

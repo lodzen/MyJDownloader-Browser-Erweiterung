@@ -5,52 +5,80 @@
     padding: 0.2em 0;
 }
 
+:root {
+    --myjd-bg: #e8f3f6;
+    --myjd-surface: #ffffff;
+    --myjd-primary: #1b6770;
+    --myjd-accent: #f6ad3c;
+    --myjd-border: #c6d8dd;
+    --myjd-muted: #5f7a82;
+    --myjd-text: #16323a;
+    --myjd-radius: 10px;
+    --myjd-shadow: 0 10px 30px rgba(15, 45, 54, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --myjd-bg: #0f1c1f;
+        --myjd-surface: #16242a;
+        --myjd-primary: #4ed0e2;
+        --myjd-accent: #ffbf66;
+        --myjd-border: #22343a;
+        --myjd-muted: #8aa4ac;
+        --myjd-text: #e9f4f7;
+        --myjd-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+    }
+}
+
 html {
     height: 330px;
 }
 
 body {
-    color: #18383f;
+    color: var(--myjd-text);
     min-width: 410px;
     font-size: 14px;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
     opacity: 1;
     margin: 0 !important;
-    background-color: transparent;
+    background-color: var(--myjd-bg);
     overflow-x: hidden;
     overflow-y: scroll;
 }
 
 #mainPanel {
-    background-color: #dbf5fb;
-    color: #18383f;
+    background-color: var(--myjd-bg);
+    color: var(--myjd-text);
     font-size: 14px;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 .errorContainer {
     width: 100%;
-    font-weight: bold;
-    padding: 8px;
-    color: white;
-    text-shadow: none !important;
-    background-color: #d32f2f;
+    font-weight: 600;
+    padding: 12px 14px;
+    color: #c62828;
+    border-radius: var(--myjd-radius);
+    background: #fdecea;
+    border: 1px solid rgba(198, 40, 40, 0.15);
 }
 
 .lightPanel {
-    padding: 12px;
-    margin-bottom: 12px;
-    color: #18383F;
-    font-size: 13px;
-    font-family: Arial, Helvetica, sans-serif;
-    background-color: #fff;
-    text-shadow: #fff 0 1px 0;
-    border: 1px solid darkgrey;
+    padding: 20px;
+    margin-bottom: 16px;
+    color: var(--myjd-text);
+    font-size: 14px;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--myjd-surface);
+    border-radius: var(--myjd-radius);
+    border: 1px solid var(--myjd-border);
+    box-shadow: var(--myjd-shadow);
 }
 
 .formPanel {
     min-height: 60px;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 .formPanel h1 {
@@ -59,75 +87,78 @@ body {
 
 .formPanel form label {
     padding-top: 12px;
-    font-weight: bold;
+    font-weight: 600;
+    color: var(--myjd-muted);
 }
 
 .formPanel form input {
     width: 100%;
-    padding: 9px 15px;
-    border: 0;
+    padding: 12px 16px;
+    border: 1px solid var(--myjd-border);
+    border-radius: var(--myjd-radius);
     font-size: 14px;
+    background-color: var(--myjd-surface);
+    color: var(--myjd-text);
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.formPanel form input:focus {
+    border-color: var(--myjd-primary);
+    box-shadow: 0 0 0 3px rgba(27, 103, 112, 0.15);
+    outline: none;
 }
 
 .formPanel form input[type="submit"] {
     margin-top: 20px;
     width: 100%;
-    padding: 9px 15px;
+    padding: 12px 16px;
     border: 0;
     font-size: 14px;
 }
 
 .xbutton {
     display: inline-block;
-    font-family: 'Yanone Kaffeesatz', sans-serif;
+    font-family: "Yanone Kaffeesatz", sans-serif;
     letter-spacing: inherit;
     font-smoothing: antialiased;
     text-decoration: none;
-    color: #fff !important;
-    border-radius: 3px;
-    background-color: #eebb1b;
-    background-image: -webkit-gradient(linear, left top, left bottom, from(#f3d435), to(#e9a201));
-    background-image: -webkit-linear-gradient(top, #f3d435, #e9a201);
-    background-image: -moz-linear-gradient(top, #f3d435, #e9a201);
-    background-image: -ms-linear-gradient(top, #f3d435, #e9a201);
-    background-image: -o-linear-gradient(top, #f3d435, #e9a201);
-    background-image: linear-gradient(to bottom, #f3d435, #e9a201);
-    -pie-background: linear-gradient(#f3d435, #e9a201);
-    border: 1px solid #cd8000;
-    border-top-color: #e99c00;
-    text-shadow: 0 1px 1px #c97a00;
-    box-shadow: 0 0 2px #fff inset;
+    color: #1b2428 !important;
+    border-radius: var(--myjd-radius);
+    background-color: var(--myjd-accent);
+    border: none;
+    text-shadow: none;
+    box-shadow: 0 10px 20px rgba(246, 173, 60, 0.35);
     cursor: pointer;
-    -webkit-transition: all .1s linear;
-    -moz-transition: all .1s linear;
-    -ms-transition: all .1s linear;
-    -o-transition: all .1s linear;
-    transition: all .1s linear;
-    padding: 3px 7px;
-    font-size: 1.2em;
+    transition: transform .15s ease, box-shadow .15s ease;
+    padding: 10px 20px;
+    font-size: 1.05em;
+}
+
+.xbutton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(246, 173, 60, 0.45);
+}
+
+.xbutton:active {
+    transform: translateY(0);
+    box-shadow: 0 8px 20px rgba(246, 173, 60, 0.35);
 }
 
 .xbutton[disabled], .xbutton[disabled]:hover, .xbutton.unselected {
-    background-color: #b5b5b5;
-    background-image: -webkit-gradient(linear, left top, left bottom, from(#cccccc), to(#a7a7a7));
-    background-image: -webkit-linear-gradient(top, #cccccc, #a7a7a7);
-    background-image: -moz-linear-gradient(top, #cccccc, #a7a7a7);
-    background-image: -ms-linear-gradient(top, #cccccc, #a7a7a7);
-    background-image: -o-linear-gradient(top, #cccccc, #a7a7a7);
-    background-image: linear-gradient(to bottom, #cccccc, #a7a7a7);
-    -pie-background: linear-gradient(#cccccc, #a7a7a7);
-    behavior: url(/css/PIE.htc);
-    border: solid #868686 1px;
-    border-top-color: #a0a0a0;
-    text-shadow: 0 1px 1px #8d8d8d;
-    box-shadow: 0 0px 2px white inset;
+    background-color: #9aa5ad;
+    color: #f0f5f7 !important;
+    box-shadow: none;
+    cursor: not-allowed;
 }
 
 a, a:visited {
+    text-decoration: none;
+    color: var(--myjd-primary);
+    font-weight: 600;
+}
+
+a:hover {
     text-decoration: underline;
-    color: #18383f;
-    font-weight: bold;
-    text-align: right;
 }
 
 .invisible {
@@ -139,11 +170,11 @@ a, a:visited {
 }
 
 .deviceErrorMessage {
-    font-weight: bold;
-    padding: 8px;
-    color: white;
-    text-shadow: none !important;
-    background-color: #d32f2f;
+    font-weight: 600;
+    padding: 10px 12px;
+    color: #c62828;
+    background-color: #fdecea;
+    border-radius: var(--myjd-radius);
 }
 
 .formErrorMessage {
@@ -157,24 +188,21 @@ a, a:visited {
 }
 
 .successMessage {
-    padding: 10px;
-    font-weight: bold;
-    background-color: #FFFAE7;
-    border: 1px solid green;
-    -moz-border-radius: 7px;
-    -webkit-border-radius: 7px;
-    border-radius: 7px;
-    width: 260px;
+    padding: 14px 16px;
+    font-weight: 600;
+    background-color: #f0f9eb;
+    border: 1px solid rgba(46, 125, 50, 0.25);
+    border-radius: var(--myjd-radius);
+    width: 280px;
     margin: 32px auto 16px;
 }
 
 .details {
-    padding: 10px;
-    background-color: #FFFAE7;
-    border: 1px solid #cfcfcf;
-    -moz-border-radius: 3px;
-    -webkit-border-radius: 3px;
-    border-radius: 3px;
+    padding: 12px;
+    background-color: var(--myjd-surface);
+    border: 1px solid var(--myjd-border);
+    border-radius: var(--myjd-radius);
+    box-shadow: var(--myjd-shadow);
 }
 
 .keyboardShortcut {
@@ -206,23 +234,24 @@ a, a:visited {
 }
 
 .card {
-    padding: 8px;
-    color: #18383F;
+    padding: 16px;
+    color: var(--myjd-text);
     font-size: 13px;
-    font-family: Arial, Helvetica, sans-serif;
-    background-color: #fff;
-    text-shadow: #fff 0 1px 0;
-    box-shadow: -1px 0 1px #296570 inset, 1px 0 1px #296570 inset;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--myjd-surface);
+    border-radius: var(--myjd-radius);
+    border: 1px solid var(--myjd-border);
+    box-shadow: var(--myjd-shadow);
 }
 
 .deviceInfo {
-    color: #18383F;
+    color: var(--myjd-text);
     font-size: 13px;
-    font-family: Arial, Helvetica, sans-serif;
-    background-color: #fff;
-    text-shadow: #fff 0 1px 0;
-    border: 1px solid darkgrey;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, .25);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--myjd-surface);
+    border: 1px solid var(--myjd-border);
+    border-radius: var(--myjd-radius);
+    box-shadow: var(--myjd-shadow);
     outline: 0;
 }
 
@@ -247,9 +276,13 @@ a, a:visited {
 .deviceActions > button {
     float: right;
     line-height: 30px;
-    padding-left: 8px;
-    margin-right: 4px;
-    padding-right: 8px;
+    padding: 0 12px;
+    margin-right: 6px;
+    border-radius: var(--myjd-radius);
+    border: 1px solid var(--myjd-border);
+    background-color: transparent;
+    color: var(--myjd-primary);
+    cursor: pointer;
 }
 
 .deviceInfoItems > span {

@@ -20,8 +20,6 @@ angular.module('myjdWebextensionApp')
 
         $scope.settingsKeys = storageService.settingsKeys;
 
-        $scope.isAllowedIncognito = false;
-
         $scope.settings = {};
 
         $scope.reallyLogoutVisible = false;
@@ -32,7 +30,6 @@ angular.module('myjdWebextensionApp')
         $scope.devices.push(storageService.LastUsedDevice);
         $scope.devices.push(storageService.SaveForLaterDevice);
 
-        $scope.settings[$scope.settingsKeys.ENHANCE_CAPTCHA_DIALOG.key] = $scope.settingsKeys[$scope.settingsKeys.ENHANCE_CAPTCHA_DIALOG.key].defaultValue;
         $scope.settings[$scope.settingsKeys.DEFAULT_PREFERRED_JD.key] = $scope.settingsKeys[$scope.settingsKeys.DEFAULT_PREFERRED_JD.key].defaultValue;
         $scope.settings[$scope.settingsKeys.DEFAULT_PRIORITY.key] = $scope.settingsKeys[$scope.settingsKeys.DEFAULT_PRIORITY.key].defaultValue;
         $scope.settings[$scope.settingsKeys.DEFAULT_DEEPDECRYPT.key] = $scope.settingsKeys[$scope.settingsKeys.DEFAULT_DEEPDECRYPT.key].defaultValue;
@@ -79,12 +76,6 @@ angular.module('myjdWebextensionApp')
             chrome.runtime.openOptionsPage();
         };
 
-        chrome.extension.isAllowedIncognitoAccess(function (isAllowedAccess) {
-            $timeout(function () {
-                $scope.isAllowedIncognito = isAllowedAccess;
-            });
-        });
-
         chrome.storage.onChanged.addListener(function (changes, namespace) {
             if (changes && changes[$scope.settingsKeys.CLIPBOARD_OBSERVER.key]) {
                 $timeout(function () {
@@ -116,7 +107,6 @@ angular.module('myjdWebextensionApp')
         }
 
         $scope.$watchGroup([
-            "settings." + $scope.settingsKeys.ENHANCE_CAPTCHA_DIALOG.key,
             "settings." + $scope.settingsKeys.CLIPBOARD_OBSERVER.key,
             "settings." + $scope.settingsKeys.ADD_LINKS_DIALOG_ACTIVE.key,
             "settings." + $scope.settingsKeys.COUNTDOWN_ACTIVE.key,
@@ -127,7 +117,6 @@ angular.module('myjdWebextensionApp')
             "settings." + $scope.settingsKeys.DEFAULT_DEEPDECRYPT.key,
             "settings." + $scope.settingsKeys.DEFAULT_AUTOSTART.key,
             "settings." + $scope.settingsKeys.DEFAULT_AUTOEXTRACT.key,
-            "settings." + $scope.settingsKeys.CAPTCHA_PRIVACY_MODE.key,
             "settings." + $scope.settingsKeys.CLICKNLOAD_ACTIVE.key,
             "settings." + $scope.settingsKeys.DEFAULT_OVERWRITE_PACKAGIZER.key],
             function (newValues, oldValues, scope) {
@@ -136,11 +125,6 @@ angular.module('myjdWebextensionApp')
                 changes.push({
                     key: $scope.settingsKeys.CLIPBOARD_OBSERVER.key,
                     value: scope.settings[$scope.settingsKeys.CLIPBOARD_OBSERVER.key]
-                });
-
-                changes.push({
-                    key: $scope.settingsKeys.ENHANCE_CAPTCHA_DIALOG.key,
-                    value: scope.settings[$scope.settingsKeys.ENHANCE_CAPTCHA_DIALOG.key]
                 });
 
                 if (scope.settings[$scope.settingsKeys.DEFAULT_PREFERRED_JD.key].id === storageService.AskEveryTimeDevice.id) {
@@ -155,11 +139,6 @@ angular.module('myjdWebextensionApp')
                 changes.push({
                     key: $scope.settingsKeys.COUNTDOWN_ACTIVE.key,
                     value: scope.settings[$scope.settingsKeys.COUNTDOWN_ACTIVE.key]
-                });
-
-                changes.push({
-                    key: $scope.settingsKeys.CAPTCHA_PRIVACY_MODE.key,
-                    value: scope.settings[$scope.settingsKeys.CAPTCHA_PRIVACY_MODE.key]
                 });
 
                 changes.push({
