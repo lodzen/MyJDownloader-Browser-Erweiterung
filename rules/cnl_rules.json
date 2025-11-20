@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/jdcheck.js"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https?:\\/\\/(127\\.0\\.0\\.1|localhost):9666\\/jdcheck\\.js",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "script",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "extensionPath": "/assets/crossdomain.xml"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https?:\\/\\/(127\\.0\\.0\\.1|localhost):9666\\/crossdomain\\.xml",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  }
+]
+

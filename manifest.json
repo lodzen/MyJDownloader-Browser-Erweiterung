@@ -16,7 +16,7 @@
     "tabs",
     "storage",
     "webRequest",
-    "webRequestBlocking",
+    "declarativeNetRequest",
     "contextMenus",
     "scripting"
   ],
@@ -29,6 +29,15 @@
   ],
   "background": {
     "service_worker": "scripts/background_service_worker.js"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "cnl_rules",
+        "enabled": true,
+        "path": "rules/cnl_rules.json"
+      }
+    ]
   },
   "action": {
     "default_icon": "images/icon32.png",
@@ -46,6 +55,16 @@
       ],
       "matches": [
         "<all_urls>"
+      ]
+    },
+    {
+      "resources": [
+        "assets/jdcheck.js",
+        "assets/crossdomain.xml"
+      ],
+      "matches": [
+        "http://127.0.0.1:9666/*",
+        "http://localhost:9666/*"
       ]
     }
   ],

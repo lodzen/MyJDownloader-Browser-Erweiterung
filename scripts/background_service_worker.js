@@ -18,8 +18,6 @@ const JDCHECK_PATH = '/jdcheck.js';
 const CROSS_DOMAIN_PATH = '/crossdomain.xml';
 const FROM_EXTENSION_FLAG = '?fromExtension';
 
-const JD_CHECK_TRUE_RESPONSE_DATA_URI = 'data:text/plain;charset=utf-8;base64,dmFyIGpkb3dubG9hZGVyID0gdHJ1ZTs=';
-
 let clickAndLoadEnabled = true;
 let connectionActive = true;
 
@@ -40,7 +38,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.webRequest.onBeforeRequest.addListener(
   handleClickAndLoadRequest,
   { urls: LOCALHOST_PATTERNS },
-  ['blocking', 'requestBody']
+  ['requestBody']
 );
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -95,20 +93,17 @@ function handleClickAndLoadRequest(details) {
     if (details.tabId >= 0) {
       injectJdCheckFlag(details.tabId);
     }
-    return { redirectUrl: JD_CHECK_TRUE_RESPONSE_DATA_URI };
+    return;
   }
 
   if (isCrossDomainPath(path) || isFromExtension(details.url)) {
-    return {};
+    return;
   }
 
   if (isFlashAddPath(path) || isFlashAddCryptedPath(path)) {
     const clonedDetails = cloneRequestDetails(details);
     queueMicrotask(() => processFlashAddRequest(clonedDetails));
-    return { cancel: true };
   }
-
-  return {};
 }
 
 function shouldProcessClickAndLoad(url) {
