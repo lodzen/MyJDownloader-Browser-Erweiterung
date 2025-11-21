@@ -31,6 +31,7 @@ angular.module('myjdWebextensionApp')
             UNKNOWN: new ApiError(-1, "UNKNOWN"),
             BAD_REQUEST: new ApiError(400, "BAD_REQUEST"),
             AUTH_FAILED: new ApiError(403, "AUTH_FAILED"),
+            URL_BLOCKED: new ApiError(403, "URLBlocked"),
             EMAIL_INVALID: new ApiError(500, "EMAIL_INVALID", false),
             CHALLENGE_FAILED: new ApiError(200, "CHALLENGE_FAILED", true),
             METHOD_FORBIDDEN: new ApiError(200, "METHOD_FORBIDDEN", true),
@@ -116,6 +117,11 @@ angular.module('myjdWebextensionApp')
                     message: ExtensionI18nService.getMessage("api_error_blocked_client"),
                     raw: e
                 };
+            } else if (this.SERVER_ERROR.URL_BLOCKED.equals(e)) {
+                return {
+                    message: ExtensionI18nService.getMessage("api_error_url_blocked"),
+                    raw: e
+                };
             } else if (this.SERVER_ERROR.UNKNOWN.equals(e)) {
                 return {
                     message: ExtensionI18nService.getMessage("api_error_unknown"),
@@ -136,16 +142,26 @@ angular.module('myjdWebextensionApp')
                 } else if (e.responseText && e.status) {
                     try {
                         var responseJSON = JSON.parse(e.responseText);
+                        // Try direct lookup first
                         if (this.SERVER_ERROR[responseJSON.type] && this.SERVER_ERROR[responseJSON.type].status === e.status) {
                             return this.SERVER_ERROR[responseJSON.type];
                         } else if (this.DEVICE_ERROR[responseJSON.type] && this.DEVICE_ERROR[responseJSON.type].status === e.status) {
                             return this.DEVICE_ERROR[responseJSON.type];
                         }
                     } catch (parseError) {
-                        // TODO
+                        // JSON parsing failed - might be HTML error page
+                        // Check for URLBlocked in statusText (when API returns HTML instead of JSON)
+                        if (e.status === 403 && e.statusText === "URLBlocked") {
+                            return this.SERVER_ERROR.URL_BLOCKED;
+                        }
                     }
                 } else {
-                    // no raw response text, only status code
+                    // no raw response text, only status code and statusText
+                    // Check for URLBlocked in statusText
+                    if (e.status === 403 && e.statusText === "URLBlocked") {
+                        return this.SERVER_ERROR.URL_BLOCKED;
+                    }
+                    // Fallback to status code lookup
                     if (this.SERVER_ERROR[e.status]) {
                         return this.SERVER_ERROR[e.status];
                     } else if (this.DEVICE_ERROR[e.status]) {

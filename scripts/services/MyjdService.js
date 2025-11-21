@@ -124,24 +124,43 @@ angular.module('myjdWebextensionApp')
             this.connect = function (credentials, forceReinit) {
                 return $q(function (resolve, reject) {
                     if (!myjdService.api || credentials !== undefined || forceReinit === true) {
-                        require(["jdapi"], function (API) {
-                            myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.CONNECTING));
-                            myjdService.api = new API({
-                                API_ROOT: "https://api.jdownloader.org",
-                                APP_KEY: "myjd_webextension_" + createBrowserDebugInfo().browserName.toLowerCase()
-                            });
-                            window.jdapi = myjdService.api;
-                            myjdService.api.addAPIStateChangeListener(myjdService.apiStateChanceListener);
-                            var creds = {};
-                            if (credentials && credentials.email && credentials.password) {
-                                creds = {
-                                    email: credentials.email,
-                                    pass: credentials.password
-                                };
-                            }
-                            _connect(creds, resolve, reject);
+                        console.log('MyjdService: Loading jdapi module, require available:', typeof require !== 'undefined');
+                        if (typeof require === 'undefined') {
+                            var error = ApiErrorService.createApiError({ status: -1, type: 'REQUIRE_NOT_AVAILABLE' });
+                            console.error('MyjdService: require is not available');
+                            reject(error);
+                            return;
                         }
-                        );
+                        
+                        try {
+                            require(["jdapi"], function (API) {
+                                console.log('MyjdService: jdapi module loaded successfully');
+                                myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.CONNECTING));
+                                myjdService.api = new API({
+                                    API_ROOT: "https://api.jdownloader.org",
+                                    APP_KEY: "myjd_webextension_" + createBrowserDebugInfo().browserName.toLowerCase()
+                                });
+                                window.jdapi = myjdService.api;
+                                myjdService.api.addAPIStateChangeListener(myjdService.apiStateChanceListener);
+                                var creds = {};
+                                if (credentials && credentials.email && credentials.password) {
+                                    creds = {
+                                        email: credentials.email,
+                                        pass: credentials.password
+                                    };
+                                }
+                                _connect(creds, resolve, reject);
+                            }, function (err) {
+                                // RequireJS error handler
+                                console.error('MyjdService: Failed to load jdapi module', err);
+                                var error = ApiErrorService.createApiError({ status: -1, type: 'JDAPI_LOAD_FAILED', message: err && err.message ? err.message : 'Failed to load jdapi module' });
+                                reject(error);
+                            });
+                        } catch (e) {
+                            console.error('MyjdService: Exception loading jdapi', e);
+                            var error = ApiErrorService.createApiError({ status: -1, type: 'JDAPI_LOAD_EXCEPTION', message: e && e.message ? e.message : 'Exception loading jdapi' });
+                            reject(error);
+                        }
                     } else {
                         resolve();
                     }

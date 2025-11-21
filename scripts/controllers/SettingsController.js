@@ -63,6 +63,51 @@ angular.module('myjdWebextensionApp')
             }
         });
 
+        // Handle forwarded messages from service worker
+        chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+            if (message._fromServiceWorker && message.name === "myjd-toolbar") {
+                var action = message.action;
+                
+                if (action === "login") {
+                    // Handle login request from service worker
+                    if (message.data && message.data.credentials) {
+                        backgroundScriptService.login(message.data.credentials).then(function (result) {
+                            sendResponse({ data: true });
+                        }, function (error) {
+                            sendResponse({ data: false, error: error });
+                        });
+                    } else {
+                        sendResponse({ error: "credentials missing" });
+                    }
+                    return true; // Keep channel open for async response
+                } else if (action === "session-info") {
+                    // Handle session info request
+                    backgroundScriptService.getSessionInfo().then(function (result) {
+                        sendResponse({ data: { isLoggedIn: result.data.isLoggedIn } });
+                    }, function () {
+                        sendResponse({ data: { isLoggedIn: false } });
+                    });
+                    return true; // Keep channel open for async response
+                } else if (action === "logout") {
+                    // Handle logout request
+                    backgroundScriptService.logout().then(function () {
+                        sendResponse({ data: true });
+                    }, function (error) {
+                        sendResponse({ data: false, error: error });
+                    });
+                    return true; // Keep channel open for async response
+                } else if (action === "devices-pull") {
+                    // Handle devices pull request
+                    backgroundScriptService.getDevices().then(function (result) {
+                        sendResponse({ data: { devices: result.data.devices } });
+                    }, function (error) {
+                        sendResponse({ error: error });
+                    });
+                    return true; // Keep channel open for async response
+                }
+            }
+        });
+
         function initSettings() {
             storageService.getSettings(function (settings) {
                 $timeout(function () {

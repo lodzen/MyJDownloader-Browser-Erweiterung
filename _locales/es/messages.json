@@ -439,6 +439,9 @@
   "api_error_blocked_client": {
     "message": "MyJDownloader está bloqueando sus peticiones. Póngase en contacto con nosotros. (Blocked client)"
   },
+  "api_error_url_blocked": {
+    "message": "La URL está bloqueada por el servidor MyJDownloader. (URL Blocked)"
+  },
   "api_error_unknown": {
     "message": "No puedo contactar con el servidor MyJDownloader. (Unknown)"
   },
