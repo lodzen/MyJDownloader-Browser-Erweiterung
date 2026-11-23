@@ -80,10 +80,30 @@ angular.module('myjdWebextensionApp')
 
         function getSessionInfo() {
             return $q(function (resolve) {
-                resolve({
-                    data: {
-                        isLoggedIn: myjd && myjd.isConnected ? myjd.isConnected() : false
-                    }
+                // First check API connection state
+                const apiConnected = myjd && myjd.isConnected ? myjd.isConnected() : false;
+                
+                // If API is connected, return that state
+                if (apiConnected) {
+                    resolve({
+                        data: {
+                            isLoggedIn: true
+                        }
+                    });
+                    return;
+                }
+                
+                // If API isn't connected yet, check storage as fallback
+                // This handles the case where API is still initializing but storage indicates connection
+                chrome.storage.local.get('MYJD_CONNECTION_ACTIVE', function (result) {
+                    const storageConnected = result && result.MYJD_CONNECTION_ACTIVE === true;
+                    
+                    // Return optimistic state from storage if API state is unknown
+                    resolve({
+                        data: {
+                            isLoggedIn: storageConnected
+                        }
+                    });
                 });
             });
         }

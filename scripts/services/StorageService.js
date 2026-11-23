@@ -49,7 +49,7 @@ angular.module('myjdWebextensionApp')
 
             this.settingsKeys = {
                 ADD_LINKS_DIALOG_ACTIVE: {key: StorageService.SETTINGS_ADD_LINKS_DIALOG_ACTIVE, defaultValue: true},
-                COUNTDOWN_ACTIVE: {key: StorageService.SETTINGS_COUNTDOWN_ACTIVE, defaultValue: true},
+                COUNTDOWN_ACTIVE: {key: StorageService.SETTINGS_COUNTDOWN_ACTIVE, defaultValue: false},
                 COUNTDOWN_VALUE: {key: StorageService.SETTINGS_COUNTDOWN_VALUE, defaultValue: 3},
                 CLIPBOARD_OBSERVER: {key: StorageService.SETTINGS_CLIPBOARD_OBSERVER, defaultValue: false},
                 CONTEXT_MENU_SIMPLE: {key: StorageService.SETTINGS_CONTEXT_MENU_SIMPLE, defaultValue: true},

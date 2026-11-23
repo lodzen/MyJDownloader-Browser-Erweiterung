@@ -43,7 +43,7 @@ angular.module('myjdWebextensionApp')
                     });
                     console.log("MyjdService: connection state change, new state: CONNECTED_STATE");
                 } else if (state === RECONNECT_STATE) {
-                    chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
+                    // Transient state: do not downgrade the persisted flag
                     myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.RECONNECTING));
                     chrome.runtime.sendMessage({
                         name: "myjd-toolbar",
@@ -60,7 +60,7 @@ angular.module('myjdWebextensionApp')
                     ExtensionMessagingService.sendMessage("myjd-toolbar", "session-change", { isLoggedIn: false });
                     console.log("MyjdService: connection state change, new state: DISCONNECTED_STATE");
                 } else if (state === PENDING_STATE) {
-                    chrome.storage.local.set({ [CONNECTION_STATE_KEY]: false });
+                    // Transient state: do not downgrade the persisted flag
                     myjdService.apiConnectionObserver.onNext(createObservableValue(myjdService.CONNECTION_STATES.CONNECTING));
                     ExtensionMessagingService.sendMessage("myjd-toolbar", "CONNECTION_STATE_CHANGE", myjdService.CONNECTION_STATES.CONNECTING);
                     console.log("MyjdService: connection state change, new state: PENDING_STATE");
@@ -121,8 +121,12 @@ angular.module('myjdWebextensionApp')
                 });
             };
 
+            var connectInFlight = null;
             this.connect = function (credentials, forceReinit) {
-                return $q(function (resolve, reject) {
+                if (connectInFlight && credentials === undefined && forceReinit !== true) {
+                    return connectInFlight;
+                }
+                var connectPromise = $q(function (resolve, reject) {
                     if (!myjdService.api || credentials !== undefined || forceReinit === true) {
                         console.log('MyjdService: Loading jdapi module, require available:', typeof require !== 'undefined');
                         if (typeof require === 'undefined') {
@@ -165,20 +169,76 @@ angular.module('myjdWebextensionApp')
                         resolve();
                     }
                 });
+                if (credentials === undefined && forceReinit !== true) {
+                    connectInFlight = connectPromise;
+                    connectPromise.then(function () { connectInFlight = null; }, function () { connectInFlight = null; });
+                }
+                return connectPromise;
             };
 
             this.getDeviceList = function () {
                 return $q(function (resolve, reject) {
-                    try {
+                    var DEVICE_LIST_TIMEOUT_MS = 20000;
+                    var DISCONNECTED_API_STATE = 3;
+                    var settled = false;
+                    var timeoutId = setTimeout(function () {
+                        if (!settled) {
+                            settled = true;
+                            reject(ApiErrorService.createApiError({
+                                status: -1,
+                                src: 'myjd',
+                                type: 'DEVICE_LIST_TIMEOUT',
+                                message: 'Device list request timed out'
+                            }));
+                        }
+                    }, DEVICE_LIST_TIMEOUT_MS);
+                    var finish = function (fn, value) {
+                        if (!settled) {
+                            settled = true;
+                            clearTimeout(timeoutId);
+                            fn(value);
+                        }
+                    };
+                    var requestDeviceList = function () {
+                        // jdapi enqueues requests forever while not connected -
+                        // reject instead of hanging when there is no session.
+                        if (!myjdService.api || myjdService.api.getAPIState() === DISCONNECTED_API_STATE) {
+                            finish(reject, ApiErrorService.createApiError({
+                                status: -1,
+                                src: 'myjd',
+                                type: 'NOT_CONNECTED',
+                                message: 'No active MyJDownloader session'
+                            }));
+                            return;
+                        }
                         var deviceListDef = myjdService.api.listDevices();
                         deviceListDef.fail(function (e) {
-                            reject(ApiErrorService.createApiError(e));
+                            finish(reject, ApiErrorService.createApiError(e));
                         });
                         deviceListDef.done(function (data) {
-                            resolve(createObservableValue(data));
+                            finish(resolve, createObservableValue(data));
                         });
+                    };
+                    try {
+                        if (!myjdService.api) {
+                            // The api instance is created lazily on this page.
+                            // A page that loaded before a session existed (or
+                            // whose first connect attempt failed) has none -
+                            // retry the session restore instead of failing.
+                            myjdService.connect().then(requestDeviceList, function (e) {
+                                finish(reject, ApiErrorService.createApiError({
+                                    status: -1,
+                                    src: 'myjd',
+                                    type: 'NOT_CONNECTED',
+                                    message: 'No active MyJDownloader session',
+                                    raw: e
+                                }));
+                            });
+                            return;
+                        }
+                        requestDeviceList();
                     } catch (e) {
-                        reject(ApiErrorService.createApiError(e));
+                        finish(reject, ApiErrorService.createApiError(e));
                     }
                 });
             };

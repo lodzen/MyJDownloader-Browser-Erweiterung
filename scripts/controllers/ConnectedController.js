@@ -71,10 +71,15 @@ angular.module('myjdWebextensionApp')
             }).catch(function (e) {
                 $timeout(function () {
                     $scope.initializing = false;
+                    var apiError = ApiErrorService.createApiError(e && e.error ? e.error : e);
+                    if (apiError && apiError.type === 'NOT_CONNECTED') {
+                        // No active session - session-change switches to login view.
+                        return;
+                    }
                     if ($scope.state.isLoggedIn) {
                         console.log($scope.state);
                         console.log(e);
-                        $scope.state.error.message = ApiErrorService.createReadableApiError(ApiErrorService.createApiError(e));
+                        $scope.state.error.message = ApiErrorService.createReadableApiError(apiError);
                     }
                 }, 0);
             });
@@ -89,6 +94,13 @@ angular.module('myjdWebextensionApp')
         };
 
         $scope.viewstate = viewStates.JD_LIST;
+        $scope.devices = [];
+        $scope.theme = window.myjdTheme ? window.myjdTheme.get() : 'auto';
+        $scope.toggleTheme = function () {
+            if (window.myjdTheme) {
+                $scope.theme = window.myjdTheme.toggle();
+            }
+        };
 
         $scope.clipboardHistoryDisabled = false; // TODO: user settings
         $scope.initializing = false;
@@ -231,7 +243,19 @@ angular.module('myjdWebextensionApp')
 
         BackgroundScriptService.onApiError(function (error) {
             $timeout(function () {
-                if (error && error.data && error.data.error && error.data.error.type !== "UNKNOWN") {
+                var errorType = error && error.data && error.data.error && error.data.error.type;
+                if (errorType === "NOT_CONNECTED") {
+                    // No active session - the session-change handlers already
+                    // switch to the login view, nothing useful to display.
+                    $scope.initializing = false;
+                    return;
+                }
+                if (errorType === "DEVICE_LIST_TIMEOUT") {
+                    $scope.initializing = false;
+                    $scope.state.error = {message: "Failed to get a list of your JDownloaders", raw: error.data.error};
+                    return;
+                }
+                if (error && error.data && error.data.error && errorType !== "UNKNOWN") {
                     $scope.state.error = ApiErrorService.createReadableApiError(error.data.error) || {};
                 } else {
                     $scope.state.error.message = "Unknown communication error. Please try again later."

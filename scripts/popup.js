@@ -17,6 +17,11 @@ angular
                 controller: 'PopupCtrl',
                 controllerAs: 'popup'
             })
+            .when('/toolbar', {
+                templateUrl: 'partials/controllers/toolbar.html',
+                controller: 'ToolbarCtrl',
+                controllerAs: 'toolbar'
+            })
             .otherwise({
                 redirectTo: '/popup'
             });

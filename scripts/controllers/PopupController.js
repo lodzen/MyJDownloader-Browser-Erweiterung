@@ -9,7 +9,7 @@
  */
 
 angular.module('myjdWebextensionApp')
-    .controller('PopupCtrl', ['$rootScope', '$scope', '$http', '$timeout', 'BackgroundScriptService', 'ApiErrorService', function ($rootScope, $scope, $http, $timeout, BackgroundScriptService, ApiErrorService) {
+    .controller('PopupCtrl', ['$rootScope', '$scope', '$http', '$timeout', '$location', 'BackgroundScriptService', 'ApiErrorService', function ($rootScope, $scope, $http, $timeout, $location, BackgroundScriptService, ApiErrorService) {
         var loadBuildMeta = function () {
             var buildMetaReq = new XMLHttpRequest();
             buildMetaReq.open("GET", chrome.runtime.getURL('../../buildMeta.json'));
@@ -34,6 +34,33 @@ angular.module('myjdWebextensionApp')
         $scope.credentials = {email: undefined, password: undefined};
         $scope.state.isInitializing = true;
 
+        // Pending CNL/link requests take precedence - jump straight to the
+        // add-links view so the user can pick a target JDownloader.
+        chrome.runtime.sendMessage({name: "myjd-toolbar", action: "link-info"}, function (response) {
+            if (chrome.runtime.lastError || !response || !response.data) {
+                return;
+            }
+            if (response.data.length > 0) {
+                $timeout(function () {
+                    $location.path('/toolbar').search('popup', 'true');
+                }, 0);
+            }
+        });
+
+        // Check storage immediately to set optimistic UI state
+        // This ensures the UI shows the correct state even if API is still initializing
+        chrome.storage.local.get('MYJD_CONNECTION_ACTIVE', function (result) {
+            const storageConnected = result && result.MYJD_CONNECTION_ACTIVE === true;
+            if (storageConnected) {
+                $timeout(function () {
+                    // Set optimistic state from storage
+                    $scope.state.isLoggedIn = true;
+                    // Keep isInitializing true until API confirms
+                }, 0);
+            }
+        });
+
+        // Still check API state for confirmation
         BackgroundScriptService.getSessionInfo().then(function (result) {
             $timeout(function () {
                 $scope.state.isConnecting = false;
@@ -50,6 +77,7 @@ angular.module('myjdWebextensionApp')
                 $scope.state.isConnecting = false;
                 $scope.state.loading = false;
                 $scope.state.isLoggedIn = false;
+                $scope.state.isInitializing = false;
             }, 0);
         });
 
@@ -118,7 +146,7 @@ angular.module('myjdWebextensionApp')
             
             // Handle connection state changes
             if (message.action === "CONNECTION_STATE_CHANGE" && message.name === "myjd-toolbar") {
-                if (message.data === "CONNTECTED") {
+                if (message.data === "CONNECTED") {
                     $timeout(function () {
                         $scope.state.isLoggedIn = true;
                     }, 0);
@@ -159,8 +187,22 @@ angular.module('myjdWebextensionApp')
 
         $scope.showLoggedOutSettings = function () {
             $timeout(function () {
-                chrome.runtime.openOptionsPage();
+                $scope.state.error = undefined;
+                $scope.state.showSettings = true;
             });
+        };
+
+        $scope.hideSettings = function () {
+            $timeout(function () {
+                $scope.state.showSettings = false;
+            });
+        };
+
+        $scope.theme = window.myjdTheme ? window.myjdTheme.get() : 'auto';
+        $scope.toggleTheme = function () {
+            if (window.myjdTheme) {
+                $scope.theme = window.myjdTheme.toggle();
+            }
         };
 
         $scope.login = function (credentials) {

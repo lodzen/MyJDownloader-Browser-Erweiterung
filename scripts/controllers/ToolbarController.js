@@ -294,6 +294,14 @@ angular.module("myjdWebextensionApp").controller("ToolbarCtrl", [
           data: { tabId: instanceId },
         });
       }
+
+      if (isExtensionPopup()) {
+        window.close();
+      }
+    }
+
+    function isExtensionPopup() {
+      return window.location.pathname.indexOf("popup.html") !== -1;
     }
 
     $scope.getCnlTitle = function (historyItem) {
@@ -377,8 +385,11 @@ angular.module("myjdWebextensionApp").controller("ToolbarCtrl", [
       BackgroundScriptService.getDevices()
         .then(function (result) {
           $timeout(function () {
-            $scope.devices = result.data;
-            if (!$scope.devices.contains(storageService.SaveForLaterDevice)) {
+            $scope.devices = result.data.devices;
+            var hasSaveForLater = $scope.devices.some(function (device) {
+              return device.id === storageService.SaveForLaterDevice.id;
+            });
+            if (!hasSaveForLater) {
               $scope.devices.push(storageService.SaveForLaterDevice);
             }
             $scope.initState.devices = true;
@@ -414,7 +425,8 @@ angular.module("myjdWebextensionApp").controller("ToolbarCtrl", [
           msg.action &&
           msg.action === "link-info-update" &&
           msg.tabId &&
-          msg.tabId == instanceId
+          (msg.tabId == instanceId ||
+            (msg.tabId === "all" && instanceId === undefined))
         ) {
           updateLinks();
           $timeout(function () {
@@ -478,11 +490,17 @@ angular.module("myjdWebextensionApp").controller("ToolbarCtrl", [
     });
 
     function getParamValue(paramName) {
-      var url = window.location.search.substring(1); //get rid of "?" in querystring
-      var qArray = url.split("&"); //get key-value pairs
-      for (var i = 0; i < qArray.length; i++) {
-        var pArr = qArray[i].split("="); //split key and value
-        if (pArr[0] == paramName) return pArr[1]; //return value
+      var sources = [window.location.search.substring(1)];
+      var hashQueryIndex = window.location.hash.indexOf("?");
+      if (hashQueryIndex !== -1) {
+        sources.push(window.location.hash.substring(hashQueryIndex + 1));
+      }
+      for (var i = 0; i < sources.length; i++) {
+        var qArray = sources[i].split("&"); //get key-value pairs
+        for (var j = 0; j < qArray.length; j++) {
+          var pArr = qArray[j].split("="); //split key and value
+          if (pArr[0] == paramName) return decodeURIComponent(pArr[1]); //return value
+        }
       }
     }
 

@@ -63,8 +63,7 @@
         "assets/crossdomain.xml"
       ],
       "matches": [
-        "http://127.0.0.1:9666/*",
-        "http://localhost:9666/*"
+        "<all_urls>"
       ]
     }
   ],

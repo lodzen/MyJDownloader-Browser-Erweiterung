@@ -18,7 +18,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    :root {
+    html:not([data-theme]) {
         --myjd-bg: #0f1c1f;
         --myjd-surface: #16242a;
         --myjd-primary: #4ed0e2;
@@ -28,6 +28,17 @@
         --myjd-text: #e9f4f7;
         --myjd-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
     }
+}
+
+html[data-theme="dark"] {
+    --myjd-bg: #0f1c1f;
+    --myjd-surface: #16242a;
+    --myjd-primary: #4ed0e2;
+    --myjd-accent: #ffbf66;
+    --myjd-border: #22343a;
+    --myjd-muted: #8aa4ac;
+    --myjd-text: #e9f4f7;
+    --myjd-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
 }
 
 html {
@@ -871,6 +882,7 @@ a.expandOptionalValuesLink:hover {
 
 #toolbarPopupContainer {
     background-color: #dbf5fb;
+    width: 410px;
 }
 
 .selectionheader .selectioninfo {
@@ -1576,4 +1588,397 @@ select {
 .captchaIncognitoWarningChrome {
     font-size: small;
     font-weight: normal;
+}
+
+/* --------------------------------------------------------------------------
+   MV3 modernization pass - restores the original visual identity
+   (dark teal header, gold accents, white cards) with modern spacing,
+   flexbox layout and coherent dark-mode support.
+   -------------------------------------------------------------------------- */
+
+html {
+    height: auto;
+    min-height: 330px;
+}
+
+body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 400px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--myjd-border) transparent;
+}
+
+body::-webkit-scrollbar {
+    width: 8px;
+}
+body::-webkit-scrollbar-thumb {
+    background: var(--myjd-border);
+    border-radius: 4px;
+}
+body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Header: original dark teal bar, modern flex layout */
+#popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 42px;
+    padding: 0 10px;
+    background-color: #18383f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+}
+
+#popup-header .logo {
+    margin: 0;
+    float: none;
+    display: flex;
+    align-items: center;
+}
+
+#popup-header .logo img {
+    height: 22px;
+    width: auto;
+    display: block;
+}
+
+#popup-header .menu {
+    float: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#popup-header > ul {
+    padding: 0;
+}
+
+#popup-header > ul li {
+    margin-left: 2px;
+    display: flex;
+}
+
+#popup-header > ul li a {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 6px;
+    color: #dbf1f6;
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    transition: color .15s ease, background-color .15s ease;
+}
+
+#popup-header > ul li a:hover {
+    color: var(--myjd-accent);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+#popup-header .menu .selected {
+    color: var(--myjd-accent);
+}
+
+/* Content area */
+.deviceContainer {
+    width: auto;
+    padding: 8px;
+}
+
+/* Device entry: modern card */
+.deviceContainer .panel.panel-default {
+    border-radius: var(--myjd-radius);
+    border: 1px solid var(--myjd-border);
+    box-shadow: var(--myjd-shadow);
+    background-color: var(--myjd-surface);
+    overflow: hidden;
+}
+
+.deviceContainer .panel-default > .panel-heading {
+    background-color: transparent;
+    border-bottom: 1px solid var(--myjd-border);
+}
+
+/* Empty-state / filler icons keep their teal identity but softer */
+.fillList {
+    font-size: 48px;
+    margin-top: 48px;
+    color: #89c4c6;
+    opacity: 0.55;
+}
+
+.noDeviceConnected, .clipboardEmptyItem {
+    width: auto;
+    max-width: 340px;
+    margin: 40px auto;
+    border-radius: var(--myjd-radius);
+}
+
+/* Loading indicator spacing */
+.loadingIndicator, .loadingJDownloadersIndicator {
+    padding: 16px 0;
+}
+
+/* Dark-mode coherence for elements still using light-theme colors.
+   Applies on OS-dark when no explicit choice, or on data-theme="dark". */
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]) #popup-header {
+        background-color: #12262b;
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+
+    html:not([data-theme]) #popup-header > ul li a {
+        color: #bcd6db;
+    }
+
+    html:not([data-theme]) .deviceContainer .panel.panel-default {
+        background-color: var(--myjd-surface);
+        border-color: var(--myjd-border);
+    }
+
+    html:not([data-theme]) .deviceContainer .panel-default > .panel-heading {
+        background-color: rgba(255, 255, 255, 0.03);
+        border-bottom-color: var(--myjd-border);
+        color: var(--myjd-text);
+    }
+
+    html:not([data-theme]) .fillList {
+        color: #3d7079;
+        opacity: 0.7;
+    }
+
+    html:not([data-theme]) .noDeviceConnected, html:not([data-theme]) .clipboardEmptyItem {
+        color: #4d8891;
+    }
+
+    html:not([data-theme]) .noDeviceConnected .big-icon, html:not([data-theme]) .clipboardEmptyItem .big-icon {
+        color: #3d7079;
+    }
+}
+
+html[data-theme="dark"] #popup-header {
+    background-color: #12262b;
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="dark"] #popup-header > ul li a {
+    color: #bcd6db;
+}
+
+html[data-theme="dark"] .deviceContainer .panel.panel-default {
+    background-color: var(--myjd-surface);
+    border-color: var(--myjd-border);
+}
+
+html[data-theme="dark"] .deviceContainer .panel-default > .panel-heading {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-bottom-color: var(--myjd-border);
+    color: var(--myjd-text);
+}
+
+html[data-theme="dark"] .fillList {
+    color: #3d7079;
+    opacity: 0.7;
+}
+
+html[data-theme="dark"] .noDeviceConnected, html[data-theme="dark"] .clipboardEmptyItem {
+    color: #4d8891;
+}
+
+html[data-theme="dark"] .noDeviceConnected .big-icon, html[data-theme="dark"] .clipboardEmptyItem .big-icon {
+    color: #3d7079;
+}
+
+/* Device card internals - theme-aware */
+.deviceContainer .panel-footer {
+    background-color: rgba(27, 103, 112, 0.05);
+    border-top: 1px solid var(--myjd-border);
+    border-radius: 0 0 var(--myjd-radius) var(--myjd-radius);
+    color: var(--myjd-muted);
+}
+
+.deviceContainer .deviceName h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.deviceContainer .deviceName a {
+    color: var(--myjd-primary);
+}
+
+.deviceContainer .deviceActions .btn,
+.deviceContainer .deviceActions .btn-sm {
+    border-radius: var(--myjd-radius);
+    border: 1px solid var(--myjd-border);
+    background-color: var(--myjd-surface);
+    color: var(--myjd-primary);
+    padding: 5px 10px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+}
+
+.deviceContainer .deviceActions .btn:hover {
+    background-color: var(--myjd-primary);
+    color: #fff;
+}
+
+.deviceContainer .deviceActions .btn.activeAction,
+.deviceContainer .deviceActions .btn.active {
+    background-color: var(--myjd-accent);
+    border-color: var(--myjd-accent);
+    color: #1b2428;
+}
+
+.deviceContainer .deviceActions .btn[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.deviceContainer .deviceInfoItems > span {
+    margin-right: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+}
+
+.deviceContainer .deviceInfoItems > span:last-child {
+    margin-right: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]) .deviceContainer .panel-footer {
+        background-color: rgba(255, 255, 255, 0.03);
+        color: var(--myjd-muted);
+    }
+
+    html:not([data-theme]) .deviceContainer .deviceName a {
+        color: var(--myjd-primary);
+    }
+
+    html:not([data-theme]) .deviceContainer .deviceActions .btn {
+        background-color: transparent;
+        color: var(--myjd-text);
+    }
+
+    html:not([data-theme]) .deviceContainer .deviceActions .btn:hover {
+        background-color: var(--myjd-primary);
+        color: #08181c;
+    }
+}
+
+html[data-theme="dark"] .deviceContainer .panel-footer {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--myjd-muted);
+}
+
+html[data-theme="dark"] .deviceContainer .deviceName a {
+    color: var(--myjd-primary);
+}
+
+html[data-theme="dark"] .deviceContainer .deviceActions .btn {
+    background-color: transparent;
+    color: var(--myjd-text);
+}
+
+html[data-theme="dark"] .deviceContainer .deviceActions .btn:hover {
+    background-color: var(--myjd-primary);
+    color: #08181c;
+}
+
+html {
+    background-color: var(--myjd-bg);
+}
+
+/* Theme toggle button in the logged-out menubar */
+.themeToggleButton {
+    float: right;
+    margin-top: 6px;
+    margin-right: 10px;
+    font-size: 1.3em;
+    color: white;
+}
+
+.themeToggleButton:hover {
+    cursor: pointer;
+    color: #e99c00;
+}
+
+/* Keep the decorative rocket from pushing the popup past its viewport
+   (was the source of the scrollbar next to the device card) */
+.fillList {
+    font-size: 40px;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+/* Keep header menu inside the 400px popup width with the added theme item */
+#popup-header {
+    padding: 0 6px;
+}
+
+#popup-header > ul li a {
+    padding: 6px 5px;
+    letter-spacing: 0;
+}
+
+/* Device name was a scrollable box (overflow-y:auto + fixed width/max-height)
+   for a different view; inside the card it rendered scrollbar arrows. */
+.deviceContainer .deviceName {
+    overflow: visible;
+    width: auto;
+    max-height: none;
+    word-break: break-word;
+}
+
+/* Bootstrap col-md-* only floats at >=992px so the action buttons stacked
+   below the device name. Use flex to keep name + actions on one line. */
+.deviceContainer .panel-body > .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.deviceContainer .panel-body > .row > [class*="col-"] {
+    float: none;
+    width: auto;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.deviceContainer .deviceActions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.deviceContainer .deviceActions > button {
+    float: none;
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+/* Bootstrap .row clearfix pseudo-elements count as flex items and eat the
+   space-between gaps - remove them on the device row. */
+.deviceContainer .panel-body > .row::before,
+.deviceContainer .panel-body > .row::after {
+    display: none;
+    content: none;
+}
+
+/* Logo backdrop was hardcoded to the light-theme header color - transparent
+   lets it blend into the header in both themes. */
+#popup-header .logo {
+    background-color: transparent;
+}
+
+#popup-header .logo img {
+    background-color: transparent;
 }

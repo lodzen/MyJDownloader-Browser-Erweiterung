@@ -21,21 +21,26 @@ angular.module('myjdWebextensionApp').run(['$templateCache', function($templateC
     "        <my-connected-panel></my-connected-panel>\n" +
     "    </div>\n" +
     "\n" +
-    "    <div class=\"formPanel\" ng-show=\"!state.isInitializing && !state.isLoggedIn\" ng-cloak>\n" +
+    "    <div class=\"formPanel\" ng-show=\"!state.isInitializing && !state.isLoggedIn && state.showSettings !== true\" ng-cloak>\n" +
     "        <div id=\"menubarwrapper\">\n" +
     "            <div id=\"menubar\">\n" +
     "                <a class=\"loggedOutSettingsButton\" ng-click=\"showLoggedOutSettings()\" title=\"{{'menu_entry_settings'\n" +
     "            | translate}}\"\n" +
     "                ><i class=\"fa fa-cog\" aria-hidden=\"true\"></i></a>\n" +
+    "                <a class=\"themeToggleButton\" ng-click=\"toggleTheme()\" title=\"Toggle theme\"\n" +
+    "                ><i class=\"fa\" ng-class=\"{'fa-sun-o': theme === 'dark', 'fa-moon-o': theme !== 'dark'}\"\n" +
+    "                    aria-hidden=\"true\"></i></a>\n" +
     "            </div>\n" +
     "        </div>\n" +
     "        <div class=\"menubarspacer\">&nbsp;</div>\n" +
     "        <div id=\"loginStatus\" class=\"container\">\n" +
-    "            <div ng-show=\"((state.error.message && state.error.message.length > 0)  === true)\"\n" +
+    "            <div ng-show=\"state.error && (state.error.message || state.error.length > 0)\"\n" +
     "                 class=\"errorMessage\"\n" +
     "                 id=\"errorMessage\">\n" +
-    "                {{state.error.message || (\"ui_login_sorry_error\" | translate)}}<span ng-if=\"state.error.link\">&nbsp;<a\n" +
-    "                    href=\"{{state.error.link}}\" target=\"_blank\">{{'ui_login_click_here' | translate}}</a>.</p></span>\n" +
+    "                <span ng-if=\"state.error.message\">{{state.error.message}}</span>\n" +
+    "                <span ng-if=\"!state.error.message\">{{state.error}}</span>\n" +
+    "                <span ng-if=\"state.error.link\">&nbsp;<a\n" +
+    "                    href=\"{{state.error.link}}\" target=\"_blank\">{{'ui_login_click_here' | translate}}</a>.</span>\n" +
     "            </div>\n" +
     "            <div ng-show=\"(state.successMessage && state.successMessage.length > 0) === true\"\n" +
     "                 class=\"successMessage\"\n" +
@@ -90,6 +95,16 @@ angular.module('myjdWebextensionApp').run(['$templateCache', function($templateC
     "                </div>\n" +
     "            </form>\n" +
     "        </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"formPanel\" ng-show=\"!state.isLoggedIn && state.showSettings === true\" ng-cloak>\n" +
+    "        <div id=\"menubarwrapper\">\n" +
+    "            <div id=\"menubar\">\n" +
+    "                <a class=\"loggedOutSettingsButton\" ng-click=\"hideSettings()\" title=\"{{'ui_clipboard_history_back' | translate}}\"\n" +
+    "                ><i class=\"fa fa-arrow-left\" aria-hidden=\"true\"></i></a>\n" +
+    "            </div>\n" +
+    "        </div>\n" +
+    "        <div class=\"menubarspacer\">&nbsp;</div>\n" +
+    "        <my-settings ng-if=\"state.showSettings === true\"></my-settings>\n" +
     "    </div>\n" +
     "</div>\n"
   );
@@ -721,6 +736,9 @@ angular.module('myjdWebextensionApp').run(['$templateCache', function($templateC
     "                aria-hidden=\"true\"></i></a>\n" +
     "        </li>\n" +
     "        <li><a title=\"Logout\" ng-click=\"reallyLogout()\"><i class=\"fa fa-sign-out\" aria-hidden=\"true\"></i></a></li>\n" +
+    "        <li><a title=\"Toggle theme\" ng-click=\"toggleTheme()\"><i class=\"fa\"\n" +
+    "                ng-class=\"{'fa-sun-o': theme === 'dark', 'fa-moon-o': theme !== 'dark'}\"\n" +
+    "                aria-hidden=\"true\"></i></a></li>\n" +
     "    </ul>\n" +
     "</div>\n" +
     "<my-really-logout-panel really-logout-dialog-shown=\"reallyLogoutDialogShown\"></my-really-logout-panel>\n" +

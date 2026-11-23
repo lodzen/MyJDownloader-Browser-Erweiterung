@@ -21,8 +21,9 @@ const CROSS_DOMAIN_PATH = '/crossdomain.xml';
 const FROM_EXTENSION_FLAG = '?fromExtension';
 
 let clickAndLoadEnabled = true;
-let connectionActive = true;
+let connectionActive = false;
 let clipboardObserverActive = false;
+let stateInitialized = false;
 
 // Initialize on install/startup
 chrome.runtime.onInstalled.addListener(async () => {
@@ -94,6 +95,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return result === true;
   }
 
+  if (message.name === 'myjd-selection' && message.action === 'new-selection') {
+    if (sender.tab) {
+      const data = message.data || {};
+      addTextToRequestQueue(data.text, data.html, sender.tab);
+    }
+    sendResponse({});
+    return false;
+  }
+
   if (message.name === 'close-me') {
     handleCloseMeMessage(message, sender);
     sendResponse({});
@@ -111,6 +121,18 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   persistQueue();
 });
 
+// Keyboard commands
+if (chrome.commands !== undefined) {
+  chrome.commands.onCommand.addListener((command) => {
+    if (command === 'toggle-clipboard-observer') {
+      chrome.storage.local.get([SETTINGS_CLIPBOARD_OBSERVER], (result) => {
+        const newValue = !(result && result[SETTINGS_CLIPBOARD_OBSERVER] === true);
+        chrome.storage.local.set({ [SETTINGS_CLIPBOARD_OBSERVER]: newValue });
+      });
+    }
+  });
+}
+
 // Context menu click handler
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab || !tab.id) {
@@ -127,13 +149,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       case 'download_selection':
         // Request selection from content script
-        chrome.tabs.sendMessage(tab.id, { action: 'get-selection', tabId: tab.id });
+        sendTabMessage(tab.id, { action: 'get-selection', tabId: tab.id });
         break;
 
       case 'simple_menu_item':
         // Smart menu: handle based on context
         if (info.selectionText) {
-          chrome.tabs.sendMessage(tab.id, { action: 'get-selection', tabId: tab.id });
+          sendTabMessage(tab.id, { action: 'get-selection', tabId: tab.id });
         } else if (info.linkUrl) {
           await addLinkToRequestQueue(info.linkUrl, tab);
           openToolbarInTab(tab.id);
@@ -240,6 +262,10 @@ async function addLinkToRequestQueue(linkUrl, tab) {
 }
 
 async function initializeState() {
+  if (stateInitialized) {
+    return;
+  }
+  stateInitialized = true;
   try {
     const result = await new Promise((resolve, reject) => {
       chrome.storage.local.get(
@@ -255,7 +281,7 @@ async function initializeState() {
     });
 
     clickAndLoadEnabled = result[CLICK_AND_LOAD_SETTING_KEY] !== false;
-    connectionActive = result[CONNECTION_STATE_KEY] !== false;
+    connectionActive = result[CONNECTION_STATE_KEY] === true;
     clipboardObserverActive = result[SETTINGS_CLIPBOARD_OBSERVER] === true;
     restoreQueue(result[REQUEST_QUEUE_STORAGE_KEY]);
     
@@ -305,7 +331,7 @@ function handleClickAndLoadRequest(details) {
 }
 
 function shouldProcessClickAndLoad(url) {
-  return clickAndLoadEnabled && connectionActive && url;
+  return clickAndLoadEnabled && url;
 }
 
 function isFlashAddPath(path) {
@@ -340,15 +366,12 @@ function injectJdCheckFlag(tabId) {
   try {
     chrome.scripting.executeScript({
       target: { tabId },
+      world: 'MAIN',
       func: () => {
-        try {
-          const script = document.createElement('script');
-          script.text = 'window.jdownloader=true';
-          (document.head || document.documentElement || document.body).appendChild(script);
-        } catch (err) {
-          console.warn('Failed to inject jdcheck flag', err);
-        }
+        window.jdownloader = true;
       }
+    }).catch((e) => {
+      console.warn('Failed to inject jdcheck flag', e);
     });
   } catch (e) {
     console.warn(e);
@@ -368,12 +391,10 @@ async function processFlashAddRequest(details) {
   try {
     if (details.type === 'main_frame') {
       await handleMainFrameRequest(tab, details);
-    } else if (details.type === 'sub_frame') {
-      await queueRequestForTab(tab, details);
-      openToolbarInTab(tab.id);
     } else {
       await queueRequestForTab(tab, details);
-      openToolbarInTab(tab.id);
+      notifyQueueChanged(tab.id);
+      openAddLinksPopup();
     }
   } catch (error) {
     console.warn('Failed to process ClickAndLoad request', error);
@@ -388,15 +409,25 @@ async function handleMainFrameRequest(tab, details) {
 
   await queueRequestForTab(targetTab, details);
 
+  notifyQueueChanged(targetTab.id);
+  openAddLinksPopup();
+
   if (targetTab.id !== tab.id) {
     try {
       await chrome.tabs.remove(tab.id);
     } catch (e) {
       console.warn(e);
     }
-    openToolbarPopup(targetTab.id);
   } else {
-    openToolbarInTab(tab.id);
+    // Same-tab main frame navigation was blocked by DNR and lands on an
+    // error page - navigate back so the user stays on the source page.
+    try {
+      chrome.tabs.goBack(tab.id, () => {
+        if (chrome.runtime.lastError) {
+          // No history to go back to - leave the tab as is.
+        }
+      });
+    } catch (e) {}
   }
 }
 
@@ -425,18 +456,35 @@ async function resolveTargetTab(tab) {
 
 async function queueRequestForTab(tab, details) {
   const formData = details.requestBody?.formData || {};
-  const cnlContent = buildCnlContent(formData);
+  const cnlContent = buildCnlContent(formData, details.url);
 
   const parentUrl =
     tab.url && !tab.url.startsWith('chrome://newtab') ? tab.url : cnlContent.source || tab.url;
 
+  const now = Date.now();
+  const signature =
+    JSON.stringify(cnlContent.requestBody.formData) + '|' + (cnlContent.package || '');
+  const existing = REQUEST_QUEUE[tab.id] || [];
+  // Chrome retries blocked POSTs - an identical CNL submission within a few
+  // seconds is the same user action and must not be queued twice.
+  const isDuplicate = existing.some(
+    (entry) =>
+      entry.type === 'cnl' &&
+      now - entry.time < 10000 &&
+      JSON.stringify(entry.content?.requestBody?.formData) + '|' + (entry.content?.package || '') ===
+        signature
+  );
+  if (isDuplicate) {
+    return;
+  }
+
   const request = {
     id: generateRequestId(),
     type: 'cnl',
-    time: Date.now(),
+    time: now,
     parent: {
       url: parentUrl,
-      title: tab.title,
+      title: tab.title || cnlContent.package,
       favIconUrl: tab.favIconUrl
     },
     content: cnlContent
@@ -450,8 +498,10 @@ async function queueRequestForTab(tab, details) {
   persistQueue();
 }
 
-function buildCnlContent(formData) {
+function buildCnlContent(formData, requestUrl) {
   return {
+    url: requestUrl,
+    requestBody: { formData: formData },
     source: firstValue(formData.source) || firstValue(formData.referer),
     package: firstValue(formData.package),
     passwords: normalizeArray(formData.passwords),
@@ -492,8 +542,16 @@ function decodeURIComponentSafe(value) {
 
 function openToolbarInTab(tabId) {
   notifyQueueChanged(tabId);
+  sendTabMessage(tabId, { action: 'open-in-page-toolbar', tabId });
+}
+
+function sendTabMessage(tabId, message) {
   try {
-    chrome.tabs.sendMessage(tabId, { action: 'open-in-page-toolbar', tabId });
+    chrome.tabs.sendMessage(tabId, message, () => {
+      if (chrome.runtime.lastError) {
+        // ignore missing receivers
+      }
+    });
   } catch (e) {
     console.warn(e);
   }
@@ -510,27 +568,84 @@ function notifyQueueChanged(tabId) {
   });
 }
 
-function openToolbarPopup(tabId) {
-  const url = `${chrome.runtime.getURL('toolbar.html')}?id=${tabId}&popup=true`;
-  const options = {
-    url,
-    type: 'popup',
-    width: DEFAULT_TOOLBAR_WIDTH,
-    height: DEFAULT_TOOLBAR_HEIGHT
-  };
-  chrome.windows.create(options, (createdWindow) => {
-    if (chrome.runtime.lastError) {
-      console.warn(chrome.runtime.lastError.message);
+function openAddLinksPopup() {
+  updateQueueBadge();
+  try {
+    Promise.resolve(chrome.action.openPopup()).catch(function () {
+      openAddLinksPopupWindow();
+    });
+  } catch (e) {
+    openAddLinksPopupWindow();
+  }
+}
+
+// Fallback when chrome.action.openPopup() is unavailable (e.g. no user
+// activation): open the extension popup page in its own small window. The
+// page detects pending queue entries and shows the add-links view.
+let addLinksPopupWindowId = null;
+let addLinksPopupOpening = false;
+
+function openAddLinksPopupWindow() {
+  console.log('Popup could not be opened programmatically - using window fallback');
+  if (addLinksPopupWindowId !== null) {
+    chrome.windows.get(addLinksPopupWindowId, function (existingWindow) {
+      if (chrome.runtime.lastError || !existingWindow) {
+        addLinksPopupWindowId = null;
+        addLinksPopupOpening = true;
+        createAddLinksPopupWindow();
+      } else {
+        chrome.windows.update(addLinksPopupWindowId, { focused: true });
+      }
+    });
+    return;
+  }
+  if (addLinksPopupOpening) {
+    return;
+  }
+  addLinksPopupOpening = true;
+  createAddLinksPopupWindow();
+}
+
+function createAddLinksPopupWindow() {
+  chrome.windows.create(
+    {
+      url: chrome.runtime.getURL('popup.html'),
+      type: 'popup',
+      width: 430,
+      height: 520
+    },
+    function (createdWindow) {
+      addLinksPopupOpening = false;
+      if (chrome.runtime.lastError) {
+        console.warn(chrome.runtime.lastError.message);
+        return;
+      }
+      addLinksPopupWindowId = createdWindow ? createdWindow.id : null;
     }
-    if (createdWindow && createdWindow.id && createdWindow.width && createdWindow.height) {
-      setTimeout(() => {
-        chrome.windows.update(createdWindow.id, {
-          width: createdWindow.width,
-          height: createdWindow.height + 1
-        });
-      }, 800);
+  );
+}
+
+chrome.windows.onRemoved.addListener(function (windowId) {
+  if (windowId === addLinksPopupWindowId) {
+    addLinksPopupWindowId = null;
+  }
+});
+
+function getPendingRequestCount() {
+  return Object.keys(REQUEST_QUEUE).reduce(function (total, key) {
+    const queue = REQUEST_QUEUE[key];
+    return total + (Array.isArray(queue) ? queue.length : 0);
+  }, 0);
+}
+
+function updateQueueBadge() {
+  try {
+    const count = getPendingRequestCount();
+    chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
+    if (count > 0) {
+      chrome.action.setBadgeBackgroundColor({ color: '#e8a33d' });
     }
-  });
+  } catch (e) {}
 }
 
 function cloneRequestDetails(details) {
@@ -635,24 +750,28 @@ function sendMessageToPopupOrOptions(message, timeout = 10000) {
 function broadcastSessionChange(isLoggedIn) {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach((tab) => {
-      try {
-        chrome.tabs.sendMessage(tab.id, {
-          name: 'myjd-toolbar',
-          action: 'session-change',
-          data: { isLoggedIn }
-        });
-      } catch (e) {
-        // Ignore errors for tabs that don't have content scripts
-      }
+      sendTabMessage(tab.id, {
+        name: 'myjd-toolbar',
+        action: 'session-change',
+        data: { isLoggedIn }
+      });
     });
   });
 
   // Also send via runtime message for popup/options pages
-  chrome.runtime.sendMessage({
-    name: 'myjd-toolbar',
-    action: 'session-change',
-    data: { isLoggedIn }
-  });
+  try {
+    chrome.runtime.sendMessage({
+      name: 'myjd-toolbar',
+      action: 'session-change',
+      data: { isLoggedIn }
+    }, () => {
+      if (chrome.runtime.lastError) {
+        // ignore missing receivers
+      }
+    });
+  } catch (e) {
+    // ignore
+  }
 }
 
 // Get session state from storage
@@ -772,12 +891,12 @@ async function initSettings() {
 // Initialize context menu items
 async function initMenuItems() {
   try {
-    // Remove all existing menu items first
+    // Remove all existing menu items first to avoid duplicates
     try {
       await chrome.contextMenus.removeAll();
     } catch (e) {
-      // Ignore if no menus exist
-      console.log('No existing menus to remove');
+      // Ignore if no menus exist or if removal fails
+      // This is safe - we'll handle individual items below
     }
 
     // Get context menu setting
@@ -789,18 +908,49 @@ async function initMenuItems() {
 
     const isSimpleMenu = settings[SETTINGS_CONTEXT_MENU_SIMPLE] !== false; // Default to true
 
+    // Helper function to safely create a menu item
+    // Removes the item first if it exists, then creates it
+    async function createMenuItemSafely(item) {
+      try {
+        // Always try to remove the item first (idempotent operation)
+        try {
+          await chrome.contextMenus.remove(item.id);
+        } catch (e) {
+          // Item doesn't exist, which is fine - continue to create
+        }
+        
+        // Small delay to ensure removal completes before creation
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        // Now create the item
+        await chrome.contextMenus.create(item);
+      } catch (e) {
+        // If we still get a duplicate error, try one more time
+        if (e.message && (e.message.includes('duplicate id') || e.message.includes('Cannot create item'))) {
+          try {
+            // Force remove and wait a bit longer
+            await chrome.contextMenus.remove(item.id);
+            await new Promise(resolve => setTimeout(resolve, 50));
+            await chrome.contextMenus.create(item);
+          } catch (retryError) {
+            // If it still fails, log but don't throw - menu might already be correct
+            console.warn(`Menu item ${item.id} may already exist, skipping:`, retryError.message);
+          }
+        } else {
+          // Other errors should be logged
+          console.error(`Failed to create menu item ${item.id}:`, e);
+        }
+      }
+    }
+
     if (isSimpleMenu) {
       // Simple menu: single item
-      try {
-        await chrome.contextMenus.create({
-          id: 'simple_menu_item',
-          title: chrome.i18n.getMessage('context_menu_download_with_jdownloader') || 'Download with JDownloader',
-          contexts: ['all']
-        });
-        console.log('Created simple context menu');
-      } catch (e) {
-        console.error('Failed to create simple menu item:', e);
-      }
+      await createMenuItemSafely({
+        id: 'simple_menu_item',
+        title: chrome.i18n.getMessage('context_menu_download_with_jdownloader') || 'Download with JDownloader',
+        contexts: ['all']
+      });
+      console.log('Created simple context menu');
     } else {
       // Full menu: multiple items
       const menuItems = [
@@ -813,11 +963,7 @@ async function initMenuItems() {
       ];
 
       for (const item of menuItems) {
-        try {
-          await chrome.contextMenus.create(item);
-        } catch (e) {
-          console.error(`Failed to create menu item ${item.id}:`, e);
-        }
+        await createMenuItemSafely(item);
       }
       console.log('Created full context menu');
     }
@@ -1081,11 +1227,11 @@ function handleToolbarMessage(message, sender, sendResponse) {
     case 'login-success':
       // Popup successfully logged in - initialize context menus
       handleLoginSuccess(message, sender, sendResponse);
-      return false;
+      return true;
     case 'login-failed':
       // Popup login failed - ensure we're in disconnected state
       handleLoginFailed(message, sender, sendResponse);
-      return false;
+      return true;
     case 'session-info':
       handleSessionInfo(message, sender, sendResponse);
       return true; // Keep channel open for async response
@@ -1098,22 +1244,47 @@ function handleToolbarMessage(message, sender, sendResponse) {
     case 'link-info':
       sendResponse({ data: getQueueForTab(data) });
       return false;
-    case 'remove-all-requests':
-      clearRequestQueue(data.tabId ?? sender.tab?.id);
+    case 'remove-all-requests': {
+      const tabId = data.tabId ?? sender.tab?.id;
+      if (tabId === undefined) {
+        clearAllRequestQueues();
+      } else {
+        clearRequestQueue(tabId);
+      }
       sendResponse({});
       return false;
-    case 'remove-request':
-      removeRequestFromQueue(data.tabId ?? sender.tab?.id, data.requestId);
+    }
+    case 'remove-request': {
+      const tabId = data.tabId ?? sender.tab?.id;
+      if (tabId === undefined) {
+        removeRequestFromAllQueues(data.requestId);
+      } else {
+        removeRequestFromQueue(tabId, data.requestId);
+      }
       sendResponse({});
       return false;
+    }
     case 'tab-contentscript-injected':
       if (sender.tab && sender.tab.id !== undefined) {
         delete REQUEST_QUEUE[sender.tab.id];
       }
       sendResponse({});
       return false;
-    case 'close-in-page-toolbar':
-      closeInPageToolbar(data.tabId ?? sender.tab?.id);
+    case 'close-in-page-toolbar': {
+      const tabId = data.tabId ?? sender.tab?.id;
+      if (tabId === undefined) {
+        clearAllRequestQueues();
+      } else {
+        closeInPageToolbar(tabId);
+      }
+      sendResponse({});
+      return false;
+    }
+    case 'new-copy-event':
+      // Clipboard observer: ask the content script for the current selection
+      if (clipboardObserverActive && sender.tab && sender.tab.id !== undefined) {
+        sendTabMessage(sender.tab.id, { action: 'get-selection', tabId: sender.tab.id });
+      }
       sendResponse({});
       return false;
     default:
@@ -1175,18 +1346,78 @@ function removeRequestFromQueue(tabId, requestId) {
   persistQueue();
 }
 
+function clearAllRequestQueues() {
+  Object.keys(REQUEST_QUEUE).forEach((key) => {
+    const tabId = normalizeTabId(key);
+    delete REQUEST_QUEUE[key];
+    if (tabId !== undefined) {
+      notifyQueueChanged(tabId);
+    }
+  });
+  persistQueue();
+}
+
+function removeRequestFromAllQueues(requestId) {
+  Object.keys(REQUEST_QUEUE).forEach((key) => {
+    const queue = REQUEST_QUEUE[key];
+    if (!Array.isArray(queue)) {
+      return;
+    }
+    const filtered = queue.filter((request) => request.id !== requestId);
+    if (filtered.length !== queue.length) {
+      REQUEST_QUEUE[key] = filtered;
+      const tabId = normalizeTabId(key);
+      if (tabId !== undefined) {
+        notifyQueueChanged(tabId);
+      }
+    }
+  });
+  persistQueue();
+}
+
 function closeInPageToolbar(tabId) {
   const normalizedId = normalizeTabId(tabId);
   if (normalizedId === undefined) {
     return;
   }
-  try {
-    chrome.tabs.sendMessage(normalizedId, { action: 'close-in-page-toolbar', tabId: normalizedId });
-  } catch (e) {
-    console.warn(e);
-  }
+  sendTabMessage(normalizedId, { action: 'close-in-page-toolbar', tabId: normalizedId });
   delete REQUEST_QUEUE[normalizedId];
   persistQueue();
+}
+
+function addTextToRequestQueue(previewText, content, tab) {
+  if (!tab || !tab.id) {
+    return;
+  }
+  const enqueue = () => {
+    sendTabMessage(tab.id, { action: 'open-in-page-toolbar', tabId: tab.id });
+    setTimeout(() => {
+      const time = Date.now();
+      if (!REQUEST_QUEUE[tab.id]) {
+        REQUEST_QUEUE[tab.id] = [];
+      }
+      REQUEST_QUEUE[tab.id].push({
+        id: generateRequestId(),
+        time: time,
+        parent: { url: tab.url, title: tab.title, favIconUrl: tab.favIconUrl },
+        content: content,
+        previewText: previewText,
+        type: 'text'
+      });
+      persistQueue();
+      sendTabMessage(tab.id, { action: 'link-info-update', tabId: tab.id });
+    }, 200);
+  };
+  // Ensure the toolbar content script is present (tabs loaded before the
+  // extension may not have it). The script is idempotent.
+  try {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['contentscripts/toolbarContentscript.js']
+    }).then(enqueue).catch(enqueue);
+  } catch (e) {
+    enqueue();
+  }
 }
 
 async function safeGetTab(tabId) {
@@ -1205,7 +1436,10 @@ function normalizeTabId(value) {
 function getQueueForTab(value) {
   const tabId = normalizeTabId(value?.tabId ?? value);
   if (tabId === undefined) {
-    return [];
+    return Object.keys(REQUEST_QUEUE).reduce(function (all, key) {
+      const queue = REQUEST_QUEUE[key];
+      return all.concat(Array.isArray(queue) ? queue : []);
+    }, []);
   }
   return REQUEST_QUEUE[tabId] || [];
 }
@@ -1219,6 +1453,14 @@ function generateRequestId() {
 
 function persistQueue() {
   chrome.storage.local.set({ [REQUEST_QUEUE_STORAGE_KEY]: REQUEST_QUEUE });
+  updateQueueBadge();
+  try {
+    chrome.runtime.sendMessage({ action: 'link-info-update', tabId: 'all' }, () => {
+      if (chrome.runtime.lastError) {
+        // No extension page is listening - fine.
+      }
+    });
+  } catch (e) {}
 }
 
 function restoreQueue(savedQueue) {
@@ -1232,5 +1474,6 @@ function restoreQueue(savedQueue) {
     }
     REQUEST_QUEUE[tabId] = savedQueue[key] || [];
   });
+  updateQueueBadge();
 }
 
