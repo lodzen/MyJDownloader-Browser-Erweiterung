@@ -46,5 +46,5 @@ MV2→MV3 migration history is documented in
 
 ## License
 
-License to be determined — the original MyJDownloader extension is a product
-of AppWork GmbH. Until a license file is added, all rights are reserved.
+[MIT](LICENSE) — the original MyJDownloader extension is a product of AppWork
+GmbH; this repository is an independent continuation of that work.
