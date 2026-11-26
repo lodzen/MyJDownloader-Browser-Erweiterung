@@ -1,0 +1,12 @@
+# Browser-generated artifacts (regenerated locally per browser build)
+_metadata/
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# Optional node tooling
+node_modules/
+
+# Capture/debug logs
+*.log
